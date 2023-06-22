@@ -42,3 +42,16 @@ using Test
     @test QQ[13:16, 9:12] ≈ Q[4,3].*Q2
     @test QQ[13:16, 13:16] ≈ Q[4,4].*Q2
 end
+
+@testset "Combinations" begin
+    Q1 = RingMatrices.RingMatrix(0.9, 4)
+    Q2 = RingMatrices.RingMatrix(0.9, 4)
+    Q3 = RingMatrices.RingMatrix(0.9, 4)
+    Qp = RingMatrices.PairwiseCombinations([Q1,Q2,Q3])
+    @test size(Qp) == (64,64)
+    @test length(Qp.entries) == length(Qp.index) == 61
+
+    @test Qp[1,1] ≈ Qp.entries[1] ≈ 0.1^3
+    Qm = RingMatrices.decompose(Qp)
+    @test Qm == [Q1,Q2,Q3] 
+end

@@ -99,4 +99,106 @@ function Base.getindex(X::RingProductMatrix{T}, i::Integer, j::Integer) where T 
     X.f1[i1,j1]*X.f2[i2,j2]
 end
 
+struct PairwiseCombinations{T<:Real} <: AbstractMatrix{T}
+    p::Vector{T}
+    n::Int64
+    K::Int64
+    index::Vector{CartesianIndex}
+    entries::Vector{T}
+end
+
+function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
+    M = length(X)
+    p = fill(zero(T), M)
+    nn = fill(0,M)
+    nnz = 1
+    for (i,x) in enumerate(X)
+        p[i] = x.p
+        nn[i] = x.n
+    end
+    all(nn[1] .== nn) || error("All transition matrices should have the same number of states")
+    
+    K = length(X[1].entries)
+    nnz = 1 # all silent state
+    nnz += M*(K-1) # only one state active
+    nnz += div(M*(M-1)*(K-1)^2,2) # all pairwise combinations
+
+    offset = fill(0, M)
+    for (i,n) in enumerate(nn)
+        offset[i] = prod(nn[i+1:end]) 
+    end
+    entries = fill(zero(T), nnz)
+    index = Vector{CartesianIndex}(undef, nnz)
+    kk = 1
+    entries[kk] = prod([x.entries[1] for x in X])
+    index[kk] = CartesianIndex(1,1)
+    kk += 1
+    #all single activations 
+    for i in 1:M
+        x = X[i]
+        _p = 1.0 
+        for j in 1:M
+            if j != i
+                _p *= X[j].entries[1]
+            end
+        end
+        offset1 = offset[i]
+        for (k1,e1) in zip(x.index[2:end], x.entries[2:end])
+            entries[kk] = _p*e1
+            ii = (k1[1]-1)*offset1+1
+            jj = (k1[2]-1)*offset1+1
+            index[kk] = CartesianIndex(ii,jj)
+            kk += 1
+        end
+    end
+
+    #all pairwise combinations
+    for i in 1:M-1
+        for j in i+1:M 
+            x1 = X[i]
+            offset1 = offset[i]
+            x2 = X[j]
+            offset2 = offset[j]
+            #TODO: Do not include the all-silent state here
+            for (k1,e1) in zip(x1.index[2:end],x1.entries[2:end])
+                for (k2,e2) in zip(x2.index[2:end], x1.entries[2:end])
+                    ii = (k1[1]-1)*offset1+(k2[1]-1)*offset2+1
+                    jj = (k1[2]-1)*offset1+(k2[2]-1)*offset2+1
+                    index[kk] = CartesianIndex(ii,jj)
+                    entries[kk] = e1*e2
+                    kk += 1
+                end
+            end
+        end
+    end
+    PairwiseCombinations(p, prod(nn), nn[1], index, entries)
+end
+
+Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
+
+function Base.getindex(X::PairwiseCombinations{T}, ii::CartesianIndex) where T <: Real    
+    if ii in CartesianIndices((1:X.n, 1:X.n))
+       jj = findfirst(k->k==ii, X.index)
+       if jj === nothing
+        return 0.0
+       end
+       X.entries[jj]
+    else
+        throw(BoundsError(X, ii.I))
+    end
+end
+
+Base.getindex(X::PairwiseCombinations{T},i::Integer, j::Integer) where T <: Real = getindex(X, CartesianIndex(i,j))
+Base.getindex(X::PairwiseCombinations{T},i,j) where T <: Real = getindex(X,broadcast(CartesianIndex, i, permutedims(j)))
+
+"""
+```
+function decompose(X::PairwiseCombinations{T}) where T <: Real
+```
+Decompose the combinations into their indiviual matrices
+"""
+function decompose(X::PairwiseCombinations{T}) where T <: Real
+    [RingMatrix(_p, X.K) for _p in X.p]
+end
+
 end # module RingMatrices
