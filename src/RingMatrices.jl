@@ -89,11 +89,11 @@ function Base.getindex(X::RingProductMatrix{T}, i::Integer, j::Integer) where T 
     n1n1 = n1*n1
     # convert from product index to individual index
     # find the block
-    i1 = div(i-1,n1)+1
+    i1 = div(i-1,n2)+1
     j1 = div(j-1,n2)+1
 
     #find the index within the block
-    i2 = i - (i1-1)*n1
+    i2 = i - (i1-1)*n2
     j2 = j - (j1-1)*n2
 
     X.f1[i1,j1]*X.f2[i2,j2]
