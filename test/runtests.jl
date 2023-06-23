@@ -17,6 +17,8 @@ using Test
     @test Q[3,1] ≈ Q[3,3] ≈ Q[3,4] ≈ 0.0
     @test Q[4,1] ≈ Q[4,2] ≈ Q[4,4] ≈ 0.0
 
+    @test_throws BoundsError Q[5,1]
+
     Q2 = RingMatrices.RingMatrix(0.9, 4)
 
     QQ = RingMatrices.RingProductMatrix(Q,Q2)
@@ -48,10 +50,17 @@ end
     Q2 = RingMatrices.RingMatrix(0.9, 4)
     Q3 = RingMatrices.RingMatrix(0.9, 4)
     Qp = RingMatrices.PairwiseCombinations([Q1,Q2,Q3])
+    @test Qp.nstates == 37
     @test size(Qp) == (64,64)
     @test length(Qp.entries) == length(Qp.index) == 61
-
+    @test maximum(Qp.index) == CartesianIndex(61,61)
+    @test maximum(Qp.sindex) == CartesianIndex(37,37)
     @test Qp[1,1] ≈ Qp.entries[1] ≈ 0.1^3
+    @test Qp[3,5] ≈ 0.0
+
+    @test_throws BoundsError Qp[0,1]
+    @test_throws BoundsError Qp[65,1]
+
     Qm = RingMatrices.decompose(Qp)
     @test Qm == [Q1,Q2,Q3] 
 end

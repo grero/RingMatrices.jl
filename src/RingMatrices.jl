@@ -102,8 +102,10 @@ end
 struct PairwiseCombinations{T<:Real} <: AbstractMatrix{T}
     p::Vector{T}
     n::Int64
-    K::Int64
-    index::Vector{CartesianIndex}
+    K::Int64 # the total number of states per factor
+    nstates::Int64 # the number of possible states
+    index::Vector{CartesianIndex} # index into the full state transition matrix
+    sindex::Vector{CartesianIndex} # index into the matrix of possible transitions
     entries::Vector{T}
 end
 
@@ -129,6 +131,8 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     end
     entries = fill(zero(T), nnz)
     index = Vector{CartesianIndex}(undef, nnz)
+    # the init index for each matrix
+    eindex = Vector{Int64}(undef, M)
     kk = 1
     entries[kk] = prod([x.entries[1] for x in X])
     index[kk] = CartesianIndex(1,1)
@@ -142,6 +146,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                 _p *= X[j].entries[1]
             end
         end
+        eindex[i] = kk
         offset1 = offset[i]
         for (k1,e1) in zip(x.index[2:end], x.entries[2:end])
             entries[kk] = _p*e1
@@ -171,9 +176,28 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
             end
         end
     end
-    PairwiseCombinations(p, prod(nn), nn[1], index, entries)
+    # create an index into the non-zero states
+    # get all states
+    kk = 1
+    states = Int64[]
+    for ii in index
+        if !(ii[1] in states)
+            push!(states, ii[1])
+        end
+        if !(ii[2] in states)
+            push!(states, ii[2])
+        end
+    end
+    sort!(states)
+    nstates = length(states)
+    sindex = Vector{CartesianIndex}(undef, length(index))
+    for (ii,idx) in enumerate(index)
+        sindex[ii] = CartesianIndex(findfirst(k->k==idx[1], states),
+                                    findfirst(k->k==idx[2], states))
+    end
+    # compute number of states
+    PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, entries)
 end
-
 Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
 
 function Base.getindex(X::PairwiseCombinations{T}, ii::CartesianIndex) where T <: Real    
