@@ -106,6 +106,7 @@ struct PairwiseCombinations{T<:Real} <: AbstractMatrix{T}
     nstates::Int64 # the number of possible states
     index::Vector{CartesianIndex} # index into the full state transition matrix
     sindex::Vector{CartesianIndex} # index into the matrix of possible transitions
+    eindex::Vector{Int64} # keeps track of which transition takes each component from the silent to the active state
     entries::Vector{T}
 end
 
@@ -146,7 +147,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                 _p *= X[j].entries[1]
             end
         end
-        eindex[i] = kk
+        eindex[i] = kk # the index of the transition from the silent to the active state for this neuron
         offset1 = offset[i]
         for (k1,e1) in zip(x.index[2:end], x.entries[2:end])
             entries[kk] = _p*e1
@@ -196,7 +197,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                                     findfirst(k->k==idx[2], states))
     end
     # compute number of states
-    PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, entries)
+    PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, eindex, entries)
 end
 Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
 

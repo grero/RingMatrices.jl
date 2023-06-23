@@ -57,7 +57,8 @@ end
     @test maximum(Qp.sindex) == CartesianIndex(37,37)
     @test Qp[1,1] ≈ Qp.entries[1] ≈ 0.1^3
     @test Qp[3,5] ≈ 0.0
-
+    @test Qp.eindex == [2,6,10]
+    @test all(Qp.entries[Qp.eindex] .≈ 0.9*(1-.9)^2) # two silent, one active
     @test_throws BoundsError Qp[0,1]
     @test_throws BoundsError Qp[65,1]
 
