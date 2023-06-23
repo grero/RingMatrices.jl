@@ -99,7 +99,7 @@ function Base.getindex(X::RingProductMatrix{T}, i::Integer, j::Integer) where T 
     X.f1[i1,j1]*X.f2[i2,j2]
 end
 
-struct PairwiseCombinations{T<:Real} <: AbstractMatrix{T}
+struct PairwiseCombinations{T<:Real,N} <: AbstractMatrix{T}
     p::Vector{T}
     n::Int64
     K::Int64 # the total number of states per factor
@@ -107,6 +107,7 @@ struct PairwiseCombinations{T<:Real} <: AbstractMatrix{T}
     index::Vector{CartesianIndex} # index into the full state transition matrix
     sindex::Vector{CartesianIndex} # index into the matrix of possible transitions
     eindex::Vector{Int64} # keeps track of which transition takes each component from the silent to the active state
+    kstates::Vector{NTuple{N,Int64}} # keep track of the individual states
     entries::Vector{T}
 end
 
@@ -126,6 +127,13 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     nnz += M*(K-1) # only one state active
     nnz += div(M*(M-1)*(K-1)^2,2) # all pairwise combinations
 
+    # compute number of states
+    K = nn[1]
+    nstates = 1 # all silent state
+    nstates += M*(K-1) # only one state active
+    nstates += div(M*(M-1)*(K-1)^2,2) # all pairwise combinations
+    kstates = Vector{NTuple{M,Int64}}(undef, nstates) # the individual state of each compound state
+    states = Vector{Int64}(undef, nstates) # the individual state of each compound state
     offset = fill(0, M)
     for (i,n) in enumerate(nn)
         offset[i] = prod(nn[i+1:end]) 
@@ -135,11 +143,17 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     # the init index for each matrix
     eindex = Vector{Int64}(undef, M)
     kk = 1
+    ks = 1
+    states[kk] = 1
+    kstates[ks] = tuple(fill(1,M)...)
     entries[kk] = prod([x.entries[1] for x in X])
     index[kk] = CartesianIndex(1,1)
     kk += 1
     #all single activations 
+
+    qv = fill(1, M)
     for i in 1:M
+        fill!(qv, 1)
         x = X[i]
         _p = 1.0 
         for j in 1:M
@@ -155,12 +169,20 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
             jj = (k1[2]-1)*offset1+1
             index[kk] = CartesianIndex(ii,jj)
             kk += 1
+            vidx = findfirst(states[1:ks].==ii)
+            if vidx === nothing
+                qv[i] = k1[1]
+                ks += 1
+                states[ks] = ii
+                kstates[ks] = tuple(qv...)
+            end
         end
     end
 
     #all pairwise combinations
     for i in 1:M-1
         for j in i+1:M 
+            fill!(qv,1)
             x1 = X[i]
             offset1 = offset[i]
             x2 = X[j]
@@ -173,6 +195,15 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                     index[kk] = CartesianIndex(ii,jj)
                     entries[kk] = e1*e2
                     kk += 1
+                    vidx = findfirst(states[1:ks].==ii)
+                    if vidx === nothing
+                        qv[i] = k1[1]
+                        qv[j] = k2[1]
+                        ks += 1
+                        states[ks] = ii
+                        kstates[ks] = tuple(qv...)
+                    end
+
                 end
             end
         end
@@ -180,16 +211,9 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     # create an index into the non-zero states
     # get all states
     kk = 1
-    states = Int64[]
-    for ii in index
-        if !(ii[1] in states)
-            push!(states, ii[1])
-        end
-        if !(ii[2] in states)
-            push!(states, ii[2])
-        end
-    end
-    sort!(states)
+    sidx = sortperm(states)
+    states = states[sidx]
+    kstates = kstates[sidx]
     nstates = length(states)
     sindex = Vector{CartesianIndex}(undef, length(index))
     for (ii,idx) in enumerate(index)
@@ -197,9 +221,35 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                                     findfirst(k->k==idx[2], states))
     end
     # compute number of states
-    PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, eindex, entries)
+    PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, eindex, kstates, entries)
 end
 Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
+
+"""
+```
+function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
+```
+Update all transitions using the new transition probabilites `p`
+"""
+function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
+    M = length(p)
+    M == length(Qp.p) || throw(ArgumentError("`p` must have the same length as `Qp.p`. `length(p)==$(length(p))` where `length(Qp.p)==$(length(Qp.p))`"))
+   
+    for (jj,kk) in enumerate(Qp.sindex)
+        s1 = Qp.kstates[kk[1]]
+        s2 = Qp.kstates[kk[2]]
+        pp = 1.0
+        for (i,(k1,k2)) in enumerate(zip(s1,s2))
+            if k1 == k2 == 1
+                pp *= (1-p[i])
+            elseif k2==1 && k1 == 2
+                pp *= p[i]
+            end
+        end
+        Qp.entries[jj] = pp
+    end
+    Qp
+end
 
 function Base.getindex(X::PairwiseCombinations{T}, ii::CartesianIndex) where T <: Real    
     if ii in CartesianIndices((1:X.n, 1:X.n))

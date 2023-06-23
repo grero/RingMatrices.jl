@@ -51,6 +51,7 @@ end
     Q3 = RingMatrices.RingMatrix(0.9, 4)
     Qp = RingMatrices.PairwiseCombinations([Q1,Q2,Q3])
     @test Qp.nstates == 37
+    @test length(Qp.kstates) == Qp.nstates
     @test size(Qp) == (64,64)
     @test length(Qp.entries) == length(Qp.index) == 61
     @test maximum(Qp.index) == CartesianIndex(61,61)
@@ -64,4 +65,9 @@ end
 
     Qm = RingMatrices.decompose(Qp)
     @test Qm == [Q1,Q2,Q3] 
+
+    #updates
+    RingMatrices.update_p!(Qp, fill(0.85, 3))
+    @test Qp[1,1] ≈ Qp.entries[1] ≈ 0.15^3
+    @test all(Qp.entries[Qp.eindex] .≈ 0.85*(1-.85)^2) # two silent, one active
 end
