@@ -225,6 +225,32 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
 end
 Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
 
+"""
+```
+function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
+```
+Update all transitions using the new transition probabilites `p`
+"""
+function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
+    M = length(p)
+    M == length(Qp.p) || throw(ArgumentError("`p` must have the same length as `Qp.p`. `length(p)==$(length(p))` where `length(Qp.p)==$(length(Qp.p))`"))
+   
+    for (jj,kk) in enumerate(Qp.sindex)
+        s1 = Qp.kstates[kk[1]]
+        s2 = Qp.kstates[kk[2]]
+        pp = 1.0
+        for (i,(k1,k2)) in enumerate(zip(s1,s2))
+            if k1 == k2 == 1
+                pp *= (1-p[i])
+            elseif k2==1 && k1 == 2
+                pp *= p[i]
+            end
+        end
+        Qp.entries[jj] = pp
+    end
+    Qp
+end
+
 function Base.getindex(X::PairwiseCombinations{T}, ii::CartesianIndex) where T <: Real    
     if ii in CartesianIndices((1:X.n, 1:X.n))
        jj = findfirst(k->k==ii, X.index)
