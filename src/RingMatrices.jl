@@ -1,5 +1,42 @@
 module RingMatrices
 
+⊗(x,y) = x*y
+⊕(x,y) = x+y
+⨸(x,y) = x/y
+
+x1m(x::T) where T = one(T) - x
+struct LogProb{T<:Real} <: Real
+    v::T
+end
+
+#Base.display(x::LogProb{T}) where T <: Real = display(x.v)
+Base.show(io::IO, x::LogProb) = show(io, x.v)
+
+⊗(x::LogProb, y::LogProb) = LogProb(x.v+y.v)
+⊕(x::LogProb, y::LogProb) = LogProb(log(exp(x.v) + exp(y.v)))
+⨸(x::LogProb, y::LogProb) = LogProb(x.v - y.v)
+x1m(x::LogProb) = LogProb(log1p(-exp(x.v)))
+
+Base.one(::Type{LogProb{T}}) where T <: Real = LogProb(zero(T))
+Base.zero(::Type{LogProb{T}}) where T <: Real = LogProb(typemin(T))
+Base.Float64(X::LogProb{T}) where T <: Real = Float64(X.v)
+
+struct Prob{T<:Real} <: Real
+    v::T
+    Prob{T}(v) where {T <: Real} = v<0 ? ArgumentError("Probabilities cannot be negative") : new(v)
+end
+Prob(v::T) where {T<:Real} = Prob{T}(v)
+
+⊗(x::Prob, y::Prob) = Prob(x.v*y.v)
+⊕(x::Prob, y::Prob) = Prob(x.v+y.v)
+⨸(x::Prob, y::Prob) = Prob(x.v/y.v)
+x1m(x::Prob{T}) where T <: Real = Prob(one(T) - x.v)
+
+Base.one(::Type{Prob{T}}) where T <: Real = Prob(one(T))
+Base.zero(::Type{Prob{T}}) where T <: Real = Prob(zero(T))
+Base.show(io::IO, x::Prob) = show(io, x.v)
+
+entries(X) = X
 """
 A Matrix with 1.0 along the -1 diagonal
 """
@@ -14,12 +51,12 @@ function RingMatrix(p::T, n) where T <: Real
     # compute the valid indices
     ni = (n-1) + 2
     indices = Vector{CartesianIndex}(undef, ni)
-    entries = Vector{Float64}(undef, ni)
+    entries = Vector{T}(undef, ni)
     k = 1
     for ii in CartesianIndices((1:n,1:n))
         if ii[1] == ii[2]==1
             indices[k] = ii
-            entries[k] = 1-p
+            entries[k] = x1m(p) 
             k += 1
         elseif ii[1]==2&&ii[2]==1
             indices[k] = ii
@@ -54,7 +91,7 @@ function Base.getindex(X::RingMatrix{T}, i::Integer,j::Integer) where T <: Real
         throw(BoundsError(X, [i,j]))
     end
     if i==j==1
-        return 1-X.p
+        return x1m(X.p)
     end
     if i==1&&j==X.n
         return one(T)
@@ -146,7 +183,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     ks = 1
     states[kk] = 1
     kstates[ks] = tuple(fill(1,M)...)
-    entries[kk] = prod([x.entries[1] for x in X])
+    entries[kk] = reduce(⊗, [x.entries[1] for x in X])
     index[kk] = CartesianIndex(1,1)
     kk += 1
     #all single activations 
@@ -155,16 +192,16 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     for i in 1:M
         fill!(qv, 1)
         x = X[i]
-        _p = 1.0 
+        _p = one(T) 
         for j in 1:M
             if j != i
-                _p *= X[j].entries[1]
+                _p = ⊗(_p, X[j].entries[1])
             end
         end
         eindex[i] = kk # the index of the transition from the silent to the active state for this neuron
         offset1 = offset[i]
         for (k1,e1) in zip(x.index[2:end], x.entries[2:end])
-            entries[kk] = _p*e1
+            entries[kk] = ⊗(_p,e1)
             ii = (k1[1]-1)*offset1+1
             jj = (k1[2]-1)*offset1+1
             index[kk] = CartesianIndex(ii,jj)
@@ -193,7 +230,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
                     ii = (k1[1]-1)*offset1+(k2[1]-1)*offset2+1
                     jj = (k1[2]-1)*offset1+(k2[2]-1)*offset2+1
                     index[kk] = CartesianIndex(ii,jj)
-                    entries[kk] = e1*e2
+                    entries[kk] = ⊗(e1,e2)
                     kk += 1
                     vidx = findfirst(states[1:ks].==ii)
                     if vidx === nothing
@@ -238,12 +275,12 @@ function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
     for (jj,kk) in enumerate(Qp.sindex)
         s1 = Qp.kstates[kk[1]]
         s2 = Qp.kstates[kk[2]]
-        pp = 1.0
+        pp = one(T) 
         for (i,(k1,k2)) in enumerate(zip(s1,s2))
             if k1 == k2 == 1
-                pp *= (1-p[i])
+                pp = ⊗(pp,1-p[i])
             elseif k2==1 && k1 == 2
-                pp *= p[i]
+                pp = ⊗(pp,p[i])
             end
         end
         Qp.entries[jj] = pp
@@ -276,4 +313,5 @@ function decompose(X::PairwiseCombinations{T}) where T <: Real
     [RingMatrix(_p, X.K) for _p in X.p]
 end
 
+export ⊗, ⊕, ⨸, Prob, LogProb
 end # module RingMatrices

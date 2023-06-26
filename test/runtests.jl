@@ -2,6 +2,26 @@ using RingMatrices
 using Test
 
 
+@testset "LogProb" begin
+    px = 0.3
+    py = 0.3
+    x = LogProb(log(px))
+    y = LogProb(log(py))
+    @test ⊗(x,y) == LogProb(log(px) + log(py))
+    @test ⊕(x,y) == LogProb(log(px + py))
+    @test ⨸(x,y) == LogProb(log(px/py))
+    @test one(LogProb{Float64}) == LogProb(0.0)
+    @test zero(LogProb{Float64}) == LogProb(-Inf)
+
+    x = Prob(px)
+    y = Prob(py)
+    @test ⊗(x,y) == Prob(px*py)
+    @test ⊕(x,y) == Prob(px + py)
+    @test ⨸(x,y) == Prob(px/py)
+    @test one(Prob{Float64}) == Prob(1.0)
+    @test zero(Prob{Float64}) == Prob(0.0)
+end
+
 @testset "Basic" begin
     Q = RingMatrices.RingMatrix(0.9, 4)
     @test Q.index == [CartesianIndex(1,1), CartesianIndex(2,1),
@@ -70,4 +90,12 @@ end
     RingMatrices.update_p!(Qp, fill(0.85, 3))
     @test Qp[1,1] ≈ Qp.entries[1] ≈ 0.15^3
     @test all(Qp.entries[Qp.eindex] .≈ 0.85*(1-.85)^2) # two silent, one active
+end
+
+@testset "LogProgRing" begin
+    Q1 = RingMatrices.RingMatrix(LogProb(log(0.001)), 4)
+    Q2 = RingMatrices.RingMatrix(LogProb(log(0.001)), 4)
+    @test Q1[1,1].v ≈ log(0.999)
+    Qp = RingMatrices.PairwiseCombinations([Q1,Q2])
+    @test all([ee.v ≈ log(0.001*0.999) for ee in Qp.entries[Qp.eindex]])
 end
