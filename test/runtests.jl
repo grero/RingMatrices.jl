@@ -17,6 +17,10 @@ using Test
     @test ⨸(x,y) == LogProb(log(px/py))
     @test one(LogProb{Float64}) == LogProb(0.0)
     @test zero(LogProb{Float64}) == LogProb(-Inf)
+    io = IOBuffer()
+    show(io, x)
+    sx = String(take!(io))
+    @test sx == string(log(px))
 
     x = Prob(px)
     y = Prob(py)
@@ -25,6 +29,10 @@ using Test
     @test ⨸(x,y) == Prob(px/py)
     @test one(Prob{Float64}) == Prob(1.0)
     @test zero(Prob{Float64}) == Prob(0.0)
+    show(io, x)
+    sx = String(take!(io))
+    @test sx == string(px)
+
     @test RingMatrices.x1m(x) == Prob(1.0-px)
 end
 
