@@ -295,7 +295,7 @@ function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
         pp = one(T) 
         for (i,(k1,k2)) in enumerate(zip(s1,s2))
             if k1 == k2 == 1
-                pp = ⊗(pp,1-p[i])
+                pp = ⊗(pp,x1m(p[i]))
             elseif k2==1 && k1 == 2
                 pp = ⊗(pp,p[i])
             end
