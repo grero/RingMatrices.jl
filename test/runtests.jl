@@ -5,8 +5,13 @@ using Test
 @testset "LogProb" begin
     px = 0.3
     py = 0.3
+    ⊗(px,py) ≈ px*py
+    ⊕(px,py) ≈ px+py
+    ⨸(px,py) ≈ px/py
+
     x = LogProb(log(px))
     y = LogProb(log(py))
+    @test Float64(x) == x.v
     @test ⊗(x,y) == LogProb(log(px) + log(py))
     @test ⊕(x,y) == LogProb(log(px + py))
     @test ⨸(x,y) == LogProb(log(px/py))
@@ -20,6 +25,7 @@ using Test
     @test ⨸(x,y) == Prob(px/py)
     @test one(Prob{Float64}) == Prob(1.0)
     @test zero(Prob{Float64}) == Prob(0.0)
+    @test RingMatrices.x1m(x) == Prob(1.0-px)
 end
 
 @testset "Basic" begin
@@ -67,6 +73,8 @@ end
     @test QQ[13:16, 5:8] ≈ Q[4,2].*Q2
     @test QQ[13:16, 9:12] ≈ Q[4,3].*Q2
     @test QQ[13:16, 13:16] ≈ Q[4,4].*Q2
+
+    @test RingMatrices.entries(Q) == Q.entries
 end
 
 @testset "Combinations" begin

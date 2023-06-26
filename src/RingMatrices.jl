@@ -118,7 +118,6 @@ end
 
 RingProductMatrix(f1::RingMatrix{T}, f2::RingMatrix{T}) where T <: Real = RingProductMatrix(f1,f2, f1.n*f2.n)
 Base.size(X::RingProductMatrix{T}) where T <: Real = (X.n, X.n)
-Base.eachindex(X::RingProductMatrix{T}) where T <: Real = X.index
 
 function Base.getindex(X::RingProductMatrix{T}, i::Integer, j::Integer) where T <: Real
     p1 = X.f1.p
