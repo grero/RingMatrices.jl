@@ -5,8 +5,21 @@ module RingMatrices
 ⨸(x,y) = x/y
 
 x1m(x::T) where T = one(T) - x
+value(x) = x
 struct LogProb{T<:Real} <: Real
     v::T
+end
+
+function logsumexp(xp::LogProb{T},yp::LogProb{T}) where T <: Real
+    if xp.v == yp.v == -Inf
+       return -Inf
+    end
+    if xp.v > yp.v
+       z = xp.v + log1p(exp(yp.v-xp.v))
+    else
+       z = yp.v + log1p(exp(xp.v-yp.v))
+    end
+    return LogProb(z)
 end
 
 #Base.display(x::LogProb{T}) where T <: Real = display(x.v)
