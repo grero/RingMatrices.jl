@@ -5,17 +5,31 @@ module RingMatrices
 ⨸(x,y) = x/y
 
 x1m(x::T) where T = one(T) - x
+value(x) = x
 struct LogProb{T<:Real} <: Real
     v::T
+end
+
+function logsumexp(xp::LogProb{T},yp::LogProb{T}) where T <: Real
+    if xp.v == yp.v == -Inf
+       return -Inf
+    end
+    if xp.v > yp.v
+       z = xp.v + log1p(exp(yp.v-xp.v))
+    else
+       z = yp.v + log1p(exp(xp.v-yp.v))
+    end
+    return LogProb(z)
 end
 
 #Base.display(x::LogProb{T}) where T <: Real = display(x.v)
 Base.show(io::IO, x::LogProb) = show(io, x.v)
 
 ⊗(x::LogProb, y::LogProb) = LogProb(x.v+y.v)
-⊕(x::LogProb, y::LogProb) = LogProb(log(exp(x.v) + exp(y.v)))
+⊕(x::LogProb, y::LogProb) = logsumexp(x,y)
 ⨸(x::LogProb, y::LogProb) = LogProb(x.v - y.v)
 x1m(x::LogProb) = LogProb(log1p(-exp(x.v)))
+value(x::LogProb{T}) where T <: Real = x.v
 
 Base.one(::Type{LogProb{T}}) where T <: Real = LogProb(zero(T))
 Base.zero(::Type{LogProb{T}}) where T <: Real = LogProb(typemin(T))
@@ -31,6 +45,7 @@ Prob(v::T) where {T<:Real} = Prob{T}(v)
 ⊕(x::Prob, y::Prob) = Prob(x.v+y.v)
 ⨸(x::Prob, y::Prob) = Prob(x.v/y.v)
 x1m(x::Prob{T}) where T <: Real = Prob(one(T) - x.v)
+value(x::Prob{T}) where T <: Real = x.v
 
 Base.one(::Type{Prob{T}}) where T <: Real = Prob(one(T))
 Base.zero(::Type{Prob{T}}) where T <: Real = Prob(zero(T))
@@ -280,7 +295,7 @@ function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
         pp = one(T) 
         for (i,(k1,k2)) in enumerate(zip(s1,s2))
             if k1 == k2 == 1
-                pp = ⊗(pp,1-p[i])
+                pp = ⊗(pp,x1m(p[i]))
             elseif k2==1 && k1 == 2
                 pp = ⊗(pp,p[i])
             end
