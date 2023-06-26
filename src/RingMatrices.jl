@@ -75,6 +75,8 @@ function RingMatrix(p::T, n) where T <: Real
 end
 
 Base.size(X::RingMatrix{T}) where T <: Real = (X.n,X.n)
+Base.eachindex(X::RingMatrix{T}) where T <: Real = X.index
+entries(X::RingMatrix{T}) where T <: Real = X.entries
 
 function Base.getindex(X::RingMatrix{T}, ii::CartesianIndex) where T <: Real    
     if ii in CartesianIndices((1:X.n, 1:X.n))
@@ -116,6 +118,7 @@ end
 
 RingProductMatrix(f1::RingMatrix{T}, f2::RingMatrix{T}) where T <: Real = RingProductMatrix(f1,f2, f1.n*f2.n)
 Base.size(X::RingProductMatrix{T}) where T <: Real = (X.n, X.n)
+Base.eachindex(X::RingProductMatrix{T}) where T <: Real = X.index
 
 function Base.getindex(X::RingProductMatrix{T}, i::Integer, j::Integer) where T <: Real
     p1 = X.f1.p
@@ -261,7 +264,7 @@ function PairwiseCombinations(X::Vector{RingMatrix{T}}) where T <: Real
     PairwiseCombinations(p, prod(nn), nn[1], nstates, index, sindex, eindex, kstates, entries)
 end
 Base.size(X::PairwiseCombinations{T}) where T <: Real = (X.n, X.n)
-
+Base.eachindex(X::PairwiseCombinations{T}) where T <: Real = X.index
 """
 ```
 function update_p!(Qp::PairwiseCombinations{T}, p::Vector{T}) where T <: Real
@@ -302,6 +305,7 @@ end
 
 Base.getindex(X::PairwiseCombinations{T},i::Integer, j::Integer) where T <: Real = getindex(X, CartesianIndex(i,j))
 Base.getindex(X::PairwiseCombinations{T},i,j) where T <: Real = getindex(X,broadcast(CartesianIndex, i, permutedims(j)))
+entries(X::PairwiseCombinations{T}) where T <: Real = X.entries
 
 """
 ```

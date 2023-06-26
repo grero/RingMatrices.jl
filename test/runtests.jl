@@ -38,6 +38,10 @@ end
     @test Q[4,1] ≈ Q[4,2] ≈ Q[4,4] ≈ 0.0
 
     @test_throws BoundsError Q[5,1]
+    @test RingMatrices.entries(Q) ≈ Q.entries
+    @test eachindex(Q) == Q.index
+    A = randn(4,4)
+    @test RingMatrices.entries(A) ≈ A
 
     Q2 = RingMatrices.RingMatrix(0.9, 4)
 
@@ -82,6 +86,9 @@ end
     @test all(Qp.entries[Qp.eindex] .≈ 0.9*(1-.9)^2) # two silent, one active
     @test_throws BoundsError Qp[0,1]
     @test_throws BoundsError Qp[65,1]
+
+    @test RingMatrices.entries(Qp) ≈ Qp.entries
+    @test eachindex(Qp) == Qp.index
 
     Qm = RingMatrices.decompose(Qp)
     @test Qm == [Q1,Q2,Q3] 
