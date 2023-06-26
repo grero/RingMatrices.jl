@@ -26,9 +26,10 @@ end
 Base.show(io::IO, x::LogProb) = show(io, x.v)
 
 ⊗(x::LogProb, y::LogProb) = LogProb(x.v+y.v)
-⊕(x::LogProb, y::LogProb) = LogProb(log(exp(x.v) + exp(y.v)))
+⊕(x::LogProb, y::LogProb) = logsumexp(x,y)
 ⨸(x::LogProb, y::LogProb) = LogProb(x.v - y.v)
 x1m(x::LogProb) = LogProb(log1p(-exp(x.v)))
+value(x::LogProb{T}) where T <: Real = x.v
 
 Base.one(::Type{LogProb{T}}) where T <: Real = LogProb(zero(T))
 Base.zero(::Type{LogProb{T}}) where T <: Real = LogProb(typemin(T))
@@ -44,6 +45,7 @@ Prob(v::T) where {T<:Real} = Prob{T}(v)
 ⊕(x::Prob, y::Prob) = Prob(x.v+y.v)
 ⨸(x::Prob, y::Prob) = Prob(x.v/y.v)
 x1m(x::Prob{T}) where T <: Real = Prob(one(T) - x.v)
+value(x::Prob{T}) where T <: Real = x.v
 
 Base.one(::Type{Prob{T}}) where T <: Real = Prob(one(T))
 Base.zero(::Type{Prob{T}}) where T <: Real = Prob(zero(T))
