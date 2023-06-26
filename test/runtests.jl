@@ -12,8 +12,9 @@ using Test
     x = LogProb(log(px))
     y = LogProb(log(py))
     @test Float64(x) == x.v
+    @test RingMatrices.value(x) == x.v
     @test ⊗(x,y) == LogProb(log(px) + log(py))
-    @test ⊕(x,y) == LogProb(log(px + py))
+    @test RingMatrices.value(⊕(x,y)) ≈ log(px + py)
     @test ⨸(x,y) == LogProb(log(px/py))
     @test one(LogProb{Float64}) == LogProb(0.0)
     @test zero(LogProb{Float64}) == LogProb(-Inf)
@@ -24,6 +25,7 @@ using Test
 
     x = Prob(px)
     y = Prob(py)
+    @test RingMatrices.value(x) == x.v
     @test ⊗(x,y) == Prob(px*py)
     @test ⊕(x,y) == Prob(px + py)
     @test ⨸(x,y) == Prob(px/py)
